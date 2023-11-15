@@ -1,0 +1,9 @@
+c:\Users\JeRyWu\Documents\GitHub\Rust_Develop\LearnRustByPracticeAndExample\Guess_number\target\debug\deps\getrandom-4c4838b9493542ee.rmeta: C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\lib.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\error.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\util.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\error_impls.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\windows.rs
+
+c:\Users\JeRyWu\Documents\GitHub\Rust_Develop\LearnRustByPracticeAndExample\Guess_number\target\debug\deps\getrandom-4c4838b9493542ee.d: C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\lib.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\error.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\util.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\error_impls.rs C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\windows.rs
+
+C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\lib.rs:
+C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\error.rs:
+C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\util.rs:
+C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\error_impls.rs:
+C:\Scoop\persist\rustup\.cargo\registry\src\index.crates.io-6f17d22bba15001f\getrandom-0.2.11\src\windows.rs:
