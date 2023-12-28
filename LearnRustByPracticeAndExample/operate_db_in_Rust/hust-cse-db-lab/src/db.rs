@@ -148,15 +148,23 @@ pub fn add_course(conn:&Connection,course:&Course) -> Result<()> {
 }
 
 pub fn alter_course(conn:&Connection,course:&Course) -> Result<()> {
-    let mut stmt = conn.prepare("UPDATE Courses SET ? = ?, WHERE Cno = ?")?;
-    if course.Cname != "default" {
-        stmt.execute(&["Cname", course.Cname,course.Cno])?;
+    if course.Cname != "_" {
+        conn.execute(
+            "UPDATE Courses SET Cname = ? WHERE Cno = ?", 
+            &[course.Cname,course.Cno]
+        )?;
     }
-    if course.Cpno != "default" {
-        stmt.execute(&["Cpno", course.Cpno,course.Cno])?;
+    if course.Cpno != "_" {
+        conn.execute(
+            "UPDATE Courses SET Cpno = ? WHERE Cno = ?", 
+            &[course.Cpno,course.Cno]
+        )?;
     }
-    if course.Ccredit != "default" {
-        stmt.execute(&["Ccredit", course.Ccredit,course.Cno])?;
+    if course.Ccredit != "_" {
+        conn.execute(
+            "UPDATE Courses SET Ccredit = ? WHERE Cno = ?", 
+            &[course.Ccredit,course.Cno]
+        )?;
     }
     println!("[*] Coure info generated successful!");
     Ok(())
@@ -215,25 +223,40 @@ pub fn set_grade(conn:&Connection,sc:&SC) -> Result<()> {
             }
         }
     }
+    println!("[*] Grade info set successful!");
     Ok(())
 }
 
 pub fn alter_student(conn:&Connection,student:&Student) -> Result<()> {
-    let mut stmt = conn.prepare("UPDATE Students SET ? = ?, WHERE Sno = ?")?;
-    if student.Sname != "default" {
-        stmt.execute(&["Sname", student.Sname,student.Sno])?;
+    if student.Sname != "_" {
+        conn.execute(
+            "UPDATE Students SET Sname = ? WHERE Sno = ?",
+            &[student.Sname,student.Sno]
+        )?;
     }
-    if student.Ssex != "default" {
-        stmt.execute(&["Ssex", student.Ssex,student.Sno])?;
+    if student.Ssex != "_" {
+        conn.execute(
+            "UPDATE Students SET Ssex = ? WHERE Sno = ?",
+            &[student.Ssex,student.Sno]
+        )?;
     }
-    if student.Sage != "default" {
-        stmt.execute(&["Sage", student.Sage,student.Sno])?;
+    if student.Sage != "_" {
+        conn.execute(
+            "UPDATE Students SET Sage = ? WHERE Sno = ?",
+            &[student.Sage,student.Sno]
+        )?;
     }
-    if student.Sdept != "default" {
-        stmt.execute(&["Sdept", student.Sdept,student.Sno])?;
+    if student.Sdept != "_" {
+        conn.execute(
+            "UPDATE Students SET Sdept = ? WHERE Sno = ?",
+            &[student.Sdept,student.Sno]
+        )?;
     }
-    if student.Scholarship != "default" {
-        stmt.execute(&["Scholarship", student.Scholarship,student.Sno])?;
+    if student.Scholarship != "_" {
+        conn.execute(
+            "UPDATE Students SET Scholarship = ? WHERE Sno = ?",
+            &[student.Scholarship,student.Sno]
+        )?;
     }
     println!("[*] Student info generated successful!");
     Ok(())
@@ -270,7 +293,19 @@ pub fn query_department(conn:&Connection) -> Result<()> {
         println!("查询最好成绩结果如下:\n{:?}",best?);
     }
     let mut stmt = conn.prepare(
-        "select Students.Sdept, count(SC.grade>=80)/count(*) as '优秀率' from Students,SC where Students.sno = SC.sno group by Students.Sdept;"
+        "select Students.Sdept, min(SC.Grade) from Students,SC where Students.Sno = SC.Sno group by Students.Sdept;"
+    )?;
+    let worst_iter = stmt.query_map([], |row| {
+        Ok(Result {
+            dept         : row.get(0)?,
+            result       : row.get(1)?,
+        })
+    })?;
+    for worst in worst_iter {
+        println!("查询最差成绩结果如下:\n{:?}",worst?);
+    }
+    let mut stmt = conn.prepare(
+        "select Students.Sdept, count(SC.Grade>=80)/count(*) as '优秀率' from Students,SC where Students.sno = SC.sno group by Students.Sdept;"
     )?;
     let rate_iter = stmt.query_map([], |row| {
         Ok(Result {
@@ -282,7 +317,11 @@ pub fn query_department(conn:&Connection) -> Result<()> {
         println!("查询优秀率结果如下:\n{:?}",rate?);
     }
     let mut stmt = conn.prepare(
-        "select Students.Sdept, count(SC.grade<60) as '不及格人数' from Students,SC where Students.sno = SC.sno group by Students.Sdept;"
+        "SELECT Students.Sdept, COUNT(*) AS '不及格人数' 
+        FROM Students
+        JOIN SC ON Students.sno = SC.sno
+        WHERE SC.Grade < 60.00
+        GROUP BY Students.Sdept;"
     )?;
     let fail_iter = stmt.query_map([], |row| {
         Ok(Result {
@@ -291,7 +330,7 @@ pub fn query_department(conn:&Connection) -> Result<()> {
         })
     })?;
     for fail in fail_iter {
-        println!("查询不及格率结果如下:\n{:?}",fail?);
+        println!("查询不及格人数结果如下:\n{:?}",fail?);
     }
     Ok(())
 }
@@ -320,7 +359,6 @@ pub fn query_course(conn:&Connection) -> Result<()> {
             Grade       : row.get(5)?,
         })
     })?;
-    // println!("课程:\n{:?}的学生成绩如下所示:",course);
     println!("查询结果如下:");
     for result in result_iter {
         println!("{:?}",result?);
@@ -330,20 +368,29 @@ pub fn query_course(conn:&Connection) -> Result<()> {
 
 pub fn query_student(conn:&Connection,student:&Student) -> Result<()> {
     #[derive(Debug)]
-    struct Result {
+    struct GradeResulte {
         Cno:String,
         Cname:String,
         Cpno:String,
-        Ccredit:String,
+        Ccredit:f32,
         Grade:f32
     }
     let operation : String = format!(
         "select Courses.* , SC.Grade from Students,Courses,SC where Students.Sno = SC.Sno and SC.Cno = Courses.Cno and Students.Sno = '{}';",
         student.Sno
     );
+    #[derive(Debug)]
+    struct PersonalInfoResult {
+        Sno         : String,
+        Sname       : String,
+        Ssex        : String,
+        Sage        : String,
+        Sdept       : String,
+        Scholarship : String
+    }
     let mut stmt = conn.prepare(&operation)?;
     let result_iter = stmt.query_map([],|row| {
-        Ok(Result{
+        Ok(GradeResulte{
             Cno         : row.get(0)?,
             Cname       : row.get(1)?,
             Cpno        : row.get(2)?,
@@ -351,11 +398,110 @@ pub fn query_student(conn:&Connection,student:&Student) -> Result<()> {
             Grade       : row.get(4)?,
         })
     })?;
-    println!("学生:\n{:?}的课程成绩如下所示:",student);
     println!("查询结果如下:");
+    let operation : String = format!(
+        "select * from Students where Students.Sno = '{}';",
+        student.Sno
+    );
+    let mut stmt = conn.prepare(&operation)?;
+    let info_iter = stmt.query_map([],|row| {
+        Ok(PersonalInfoResult{
+            Sno         : row.get(0)?,
+            Sname       : row.get(1)?,
+            Ssex        : row.get(2)?,
+            Sage        : row.get(3)?,
+            Sdept       : row.get(4)?,
+            Scholarship : row.get(5)?    
+        })
+    })?;
+    for info in info_iter {
+        println!("{:?}",info?);
+    }
     for result in result_iter {
         println!("{:?}",result?);
     }
     Ok(())
 }
 
+pub fn query_all(conn:&Connection,table:&str) -> Result<()> {
+    match table{
+        "Students" | "STUDENTS" | "students" => {
+            println!("Students 表内容如下:");
+            #[derive(Debug)]
+            struct Result {
+                Sno         : String,
+                Sname       : String,
+                Ssex        : String,
+                Sage        : String,
+                Sdept       : String,
+                Scholarship : String
+            }
+            let mut stmt = conn.prepare(
+                "SELECT * FROM Students;"
+            )?;
+            let students_iter = stmt.query_map([], |row| {
+                Ok(Result {
+                    Sno         : row.get(0)?,
+                    Sname       : row.get(1)?,
+                    Ssex        : row.get(2)?,
+                    Sage        : row.get(3)?,
+                    Sdept       : row.get(4)?,
+                    Scholarship : row.get(5)?
+                    })
+            })?;
+            for student in students_iter {
+                println!("{:?}",student?);
+            }
+
+        }
+        "Courses" | "COURSES" | "courses" => {
+            println!("Courses 表内容如下:");
+            #[derive(Debug)]
+            struct Result {
+                Cno     : String,
+                Cname   : String,
+                Cpno    : String,
+                Ccredit : f32
+            }
+            let mut stmt = conn.prepare(
+                "SELECT * FROM Courses;"
+            )?;
+            let courses_iter = stmt.query_map([], |row| {
+                Ok(Result {
+                    Cno           : row.get(0)?,
+                    Cname         : row.get(1)?,
+                    Cpno          : row.get(2)?,
+                    Ccredit       : row.get(3)?,
+                })
+            })?;
+            for course in courses_iter {
+                println!("{:?}",course?);
+            }
+
+        }
+        "SC" | "sc" => {
+            println!("SC 表内容如下:");
+            #[derive(Debug)]
+            struct Result {
+                Sno     : String,
+                Cno     : String,
+                Grade   : f32
+            }
+            let mut stmt = conn.prepare(
+                "SELECT * FROM SC;"
+            )?;
+            let sc_iter = stmt.query_map([], |row| {
+                Ok(Result {
+                    Sno         : row.get(0)?,
+                    Cno         : row.get(1)?,
+                    Grade       : row.get(2)?,
+                })
+            })?;
+            for sc in sc_iter {
+                println!("{:?}",sc?);
+            }
+        },
+        _ => panic!("Wrong Arguments!")
+    };
+    Ok(())
+}
