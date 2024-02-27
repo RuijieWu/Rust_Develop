@@ -1,54 +1,79 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-02-27 12:18:39
+ * @LastEditTime: 2024-02-27 18:20:33
  * @Description: entrance of file scanner
  */
-use file_scanner::{
+ use file_scanner::{
     db,
     scanner,
-    parser
+    util,
+    File,
+    ScanResult
 };
 use std::{
     error::Error,
     path::PathBuf,
+    thread,
+    sync::mpsc::{
+        Receiver,
+        sync_channel,
+        SyncSender
+    }
 };
 
 fn main() -> Result<(),Box<dyn Error>> {
-    parser::show_time()?;
+    println!("{}",util::show_time()?);
 
     let mut scan_path_list:Vec<PathBuf> = vec![];
-    scan_path_list.push(parser::parse()?);
-    let mut depth:u16 = 0;
-    let mut directory_number: u64 = 0;
-    let mut file_number: u64 = 0;
-    let mut longest_file_name = String::from("");
-    let mut file = parser::record()?;
+    scan_path_list.push(util::parse()?);
+    let (file_sender,file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
+    let (directory_sender,directory_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
+    let scan_thread = thread::spawn(move || {
 
-    while scan_path_list.len() > 0 {
-        let iterator = scan_path_list.clone();
-        for scan_path in iterator{
-            scanner::scan_directory(
-                scan_path.clone(),
-                &mut directory_number,
-                &mut file_number,
-                &mut longest_file_name,
-                &mut scan_path_list,
-                &mut file
-            )?;
-            scan_path_list.remove(0);
+        let mut scan_result = ScanResult::new(
+            0,
+            0,
+            0,
+            "".to_string()
+        );
+    
+        while scan_path_list.len() > 0 {
+            let iterator = scan_path_list.clone();
+            for scan_path in iterator{
+                match scanner::scan_directory(
+                    scan_path.clone(),
+                    &mut scan_result,
+                    &mut scan_path_list,
+                    &file_sender,
+                    &directory_sender
+                ){
+                    Ok(ok) => ok,
+                    Err(e) => {println!("{}",e);}
+                };
+                scan_path_list.remove(0);
+            }
+            scan_result.depth += 1;
         }
-        depth += 1;
-    }
-
-    println!(
-        "{} directories\n{} files\nMax Depth:{}\nLongest File Name:{}\nLength:{}",
-        directory_number,
-        file_number,
-        depth,
-        longest_file_name,
-        longest_file_name.len()
-    );
-
-    parser::show_time()?;
+        println!("Directories number:\n{}",scan_result.directory_number);
+        println!("Files number:\n{}",scan_result.file_number);
+        println!("The longest file name:\n{}",scan_result.longest_file_name);
+        println!("The length of the longest file name:\n{}",scan_result.longest_file_name.len());
+    });
+    let record_file_thread = thread::spawn(||{
+        match util::record_files(file_receiver){
+            Ok(ok) => ok,
+            Err(e) => {println!("{}",e);}
+        };
+    });
+    let record_directory_thread = thread::spawn(||{
+        match util::record_directories(directory_receiver){
+            Ok(ok) => ok,
+            Err(e) => {println!("{}",e);}
+        };
+    });
+    record_file_thread.join().unwrap();
+    record_directory_thread.join().unwrap();
+    scan_thread.join().unwrap();
+    println!("{}",util::show_time()?);
     Ok(())
 }
