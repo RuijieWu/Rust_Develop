@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-02-28 16:27:45
+ * @LastEditTime: 2024-02-28 17:26:30
  * @Description: entrance of file scanner
  */
 use file_scanner::{
@@ -13,7 +13,10 @@ use file_scanner::{
 use std::{
     error::Error,
     path::PathBuf,
-    thread,
+    thread::{
+        spawn,
+        JoinHandle
+    },
     sync::mpsc::{
         Receiver,
         sync_channel,
@@ -25,11 +28,16 @@ fn main() -> Result<(),Box<dyn Error>> {
     println!("{}",util::show_time()?);
 
     let mut scan_path_list:Vec<PathBuf> = vec![];
-    scan_path_list.push(util::parse()?);
+    let command = util::parse()?;
+    let scan_command = command.clone();
+    scan_path_list.push(command.scan_path);
     let (file_sender,file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
     let (directory_sender,directory_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
     let (db_file_sender,db_file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
-    let scan_thread = thread::spawn(move || {
+    let mut record_file_thread: JoinHandle<()>= spawn(||{});
+    let mut record_directory_thread: JoinHandle<()>= spawn(||{});
+    let mut db_record_thread: JoinHandle<()>= spawn(||{});
+    let scan_thread = spawn(move || {
 
         let mut scan_result = ScanResult::new(
             0,
@@ -47,7 +55,8 @@ fn main() -> Result<(),Box<dyn Error>> {
                     &mut scan_path_list,
                     &file_sender,
                     &directory_sender,
-                    &db_file_sender
+                    &db_file_sender,
+                    &scan_command
                 ){
                     Ok(ok) => ok,
                     Err(e) => {println!("{}",e);}
@@ -61,24 +70,28 @@ fn main() -> Result<(),Box<dyn Error>> {
         println!("The longest file name:\n{}",scan_result.longest_file_name);
         println!("The length of the longest file name:\n{}",scan_result.longest_file_name.len());
     });
-    let record_file_thread = thread::spawn(||{
-        match util::record_files(file_receiver){
-            Ok(ok) => ok,
-            Err(e) => {println!("{}",e);}
-        };
-    });
-    let record_directory_thread = thread::spawn(||{
-        match util::record_directories(directory_receiver){
-            Ok(ok) => ok,
-            Err(e) => {println!("{}",e);}
-        };
-    });
-    let db_record_thread = thread::spawn(||{
-        match db::db_record(db_file_receiver) {
-            Ok(ok) => ok,
-            Err(e) => {println!("{}",e);}
+    if command.yaml_option {
+        record_file_thread = spawn(||{
+            match util::record_files(file_receiver){
+                Ok(ok) => ok,
+                Err(e) => {println!("{}",e);}
+            };
+        });
+        record_directory_thread = spawn(||{
+            match util::record_directories(directory_receiver){
+                Ok(ok) => ok,
+                Err(e) => {println!("{}",e);}
+            };
+        });
+    }
+    if command.db_option {
+        db_record_thread = spawn(||{
+            match db::db_record(db_file_receiver) {
+                Ok(ok) => ok,
+                Err(e) => {println!("{}",e);}
+            }
+        });
         }
-    });
     db_record_thread.join().unwrap();
     record_file_thread.join().unwrap();
     record_directory_thread.join().unwrap();

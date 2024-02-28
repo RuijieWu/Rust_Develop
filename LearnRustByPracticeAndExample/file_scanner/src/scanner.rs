@@ -1,13 +1,14 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-02-28 16:27:52
+ * @LastEditTime: 2024-02-28 17:26:49
  * @Description: scan directory
  */
 use crate::{
     File,
     FileType,
     FilePermissions,
-    ScanResult
+    ScanResult,
+    util::Command
 };
 use std::{
     error::Error,
@@ -25,7 +26,8 @@ pub fn scan_directory(
     scan_path_list:&mut Vec<PathBuf>,
     file_sender:&SyncSender<File>,
     directory_sender:&SyncSender<File>,
-    db_file_sender:&SyncSender<File>
+    db_file_sender:&SyncSender<File>,
+    command:&Command
 ) -> Result<(),Box<dyn Error>> {
     let path = match fs::metadata(&scan_path){
         Ok(ok) => ok,
@@ -38,8 +40,12 @@ pub fn scan_directory(
         if file.file_name.len() > scan_result.longest_file_name.len() {
             scan_result.longest_file_name = file.file_name.clone();
         }
-        file_sender.send(file.clone())?;
-        db_file_sender.send(file.clone())?;
+        if command.yaml_option {
+            file_sender.send(file.clone())?;
+        }
+        if command.db_option{
+            db_file_sender.send(file)?;
+        }
         return Ok(())
     }
     let mut root_dir = get_file_info(scan_path.clone())?;
@@ -65,17 +71,25 @@ pub fn scan_directory(
             if file.file_name.len() > scan_result.longest_file_name.len() {
                 scan_result.longest_file_name = file.file_name.clone();
             }
-            file_sender.send(file.clone())?;
-            db_file_sender.send(file.clone())?;
-        }
+            if command.yaml_option {
+                file_sender.send(file.clone())?;
+            }
+            if command.db_option{
+                db_file_sender.send(file)?;
+            }
+            }
     }
     scan_result.directory_number += 1;
     //println!("{:#?}\n",root_dir);
     if root_dir.file_name.len() > scan_result.longest_file_name.len() {
         scan_result.longest_file_name = root_dir.file_name.clone();
     }
-    directory_sender.send(root_dir.clone())?;
-    db_file_sender.send(root_dir.clone())?;
+    if command.yaml_option {
+        directory_sender.send(root_dir.clone())?;
+    }
+    if command.db_option{
+        db_file_sender.send(root_dir)?;
+    }
     Ok(())
 }
 
