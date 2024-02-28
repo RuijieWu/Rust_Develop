@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-02-27 18:07:15
+ * @LastEditTime: 2024-02-28 16:27:52
  * @Description: scan directory
  */
- use crate::{
+use crate::{
     File,
     FileType,
     FilePermissions,
@@ -24,7 +24,8 @@ pub fn scan_directory(
     scan_result:&mut ScanResult,
     scan_path_list:&mut Vec<PathBuf>,
     file_sender:&SyncSender<File>,
-    directory_sender:&SyncSender<File>
+    directory_sender:&SyncSender<File>,
+    db_file_sender:&SyncSender<File>
 ) -> Result<(),Box<dyn Error>> {
     let path = match fs::metadata(&scan_path){
         Ok(ok) => ok,
@@ -37,7 +38,8 @@ pub fn scan_directory(
         if file.file_name.len() > scan_result.longest_file_name.len() {
             scan_result.longest_file_name = file.file_name.clone();
         }
-        file_sender.send(file)?;
+        file_sender.send(file.clone())?;
+        db_file_sender.send(file.clone())?;
         return Ok(())
     }
     let mut root_dir = get_file_info(scan_path.clone())?;
@@ -63,7 +65,8 @@ pub fn scan_directory(
             if file.file_name.len() > scan_result.longest_file_name.len() {
                 scan_result.longest_file_name = file.file_name.clone();
             }
-            file_sender.send(file)?;
+            file_sender.send(file.clone())?;
+            db_file_sender.send(file.clone())?;
         }
     }
     scan_result.directory_number += 1;
@@ -71,7 +74,8 @@ pub fn scan_directory(
     if root_dir.file_name.len() > scan_result.longest_file_name.len() {
         scan_result.longest_file_name = root_dir.file_name.clone();
     }
-    directory_sender.send(root_dir)?;
+    directory_sender.send(root_dir.clone())?;
+    db_file_sender.send(root_dir.clone())?;
     Ok(())
 }
 

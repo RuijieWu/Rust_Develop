@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-02-27 18:20:33
+ * @LastEditTime: 2024-02-28 16:27:45
  * @Description: entrance of file scanner
  */
- use file_scanner::{
+use file_scanner::{
     db,
     scanner,
     util,
@@ -28,6 +28,7 @@ fn main() -> Result<(),Box<dyn Error>> {
     scan_path_list.push(util::parse()?);
     let (file_sender,file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
     let (directory_sender,directory_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
+    let (db_file_sender,db_file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
     let scan_thread = thread::spawn(move || {
 
         let mut scan_result = ScanResult::new(
@@ -45,7 +46,8 @@ fn main() -> Result<(),Box<dyn Error>> {
                     &mut scan_result,
                     &mut scan_path_list,
                     &file_sender,
-                    &directory_sender
+                    &directory_sender,
+                    &db_file_sender
                 ){
                     Ok(ok) => ok,
                     Err(e) => {println!("{}",e);}
@@ -71,6 +73,13 @@ fn main() -> Result<(),Box<dyn Error>> {
             Err(e) => {println!("{}",e);}
         };
     });
+    let db_record_thread = thread::spawn(||{
+        match db::db_record(db_file_receiver) {
+            Ok(ok) => ok,
+            Err(e) => {println!("{}",e);}
+        }
+    });
+    db_record_thread.join().unwrap();
     record_file_thread.join().unwrap();
     record_directory_thread.join().unwrap();
     scan_thread.join().unwrap();

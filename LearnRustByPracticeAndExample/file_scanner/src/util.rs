@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-02-27 18:45:12
+ * @LastEditTime: 2024-02-28 16:27:40
  * @Description: parse command to choose job
  */
- use std::{
+use std::{
     path::PathBuf,
     env,
     error::Error,
@@ -31,7 +31,7 @@ pub fn parse() -> Result<PathBuf,Box<dyn Error>> {
 }
 
 pub fn record_files(file_receiver:Receiver<crate::File>) -> Result<(),Box<dyn Error>> {
-    let scan_files_record = "scan_files_record";
+    let scan_files_record = "scan_files_record.yaml";
     let scan_files = File::create(&scan_files_record)?;
     for file in file_receiver{
         if let FileType::File = file.file_type {
@@ -42,7 +42,7 @@ pub fn record_files(file_receiver:Receiver<crate::File>) -> Result<(),Box<dyn Er
 }
 
 pub fn record_directories(file_receiver:Receiver<crate::File>) -> Result<(),Box<dyn Error>> {
-    let scan_directories_record = "scan_directories_record_at";
+    let scan_directories_record = "scan_directories_record.yaml";
     let scan_directories = File::create(&scan_directories_record)?;
     for file in file_receiver{
         if let FileType::Directory = file.file_type {
