@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-02-28 17:26:30
+ * @LastEditTime: 2024-02-28 23:32:06
  * @Description: entrance of file scanner
  */
-use file_scanner::{
+ use file_scanner::{
     db,
     scanner,
     util,
@@ -70,6 +70,7 @@ fn main() -> Result<(),Box<dyn Error>> {
         println!("The longest file name:\n{}",scan_result.longest_file_name);
         println!("The length of the longest file name:\n{}",scan_result.longest_file_name.len());
     });
+
     if command.yaml_option {
         record_file_thread = spawn(||{
             match util::record_files(file_receiver){
@@ -92,10 +93,16 @@ fn main() -> Result<(),Box<dyn Error>> {
             }
         });
         }
-    db_record_thread.join().unwrap();
-    record_file_thread.join().unwrap();
-    record_directory_thread.join().unwrap();
+    
     scan_thread.join().unwrap();
+
+    if command.db_option {
+        db_record_thread.join().unwrap();
+    }
+    if command.yaml_option{
+        record_file_thread.join().unwrap();
+        record_directory_thread.join().unwrap();
+    }
     println!("{}",util::show_time()?);
     Ok(())
 }

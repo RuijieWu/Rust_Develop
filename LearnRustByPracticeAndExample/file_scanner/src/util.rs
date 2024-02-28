@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-02-28 17:26:55
+ * @LastEditTime: 2024-02-28 23:32:14
  * @Description: parse command to choose job
  */
-use std::{
+ use std::{
     path::PathBuf,
     env,
     error::Error,
@@ -41,7 +41,11 @@ impl Command{
     }
 }
 pub fn parse() -> Result<Command,Box<dyn Error>> {
-    let help_message = String::from("");
+    let help_message = "./file_scanner [path] [-db]/[-yaml]
+    with no arguments , file_scanner will scan target path and print the files number , directories number , the longest file name and its length
+    with -db argument , file_scanner will scan target path and store scan result into sqlite database created 
+    with -yaml argument , file_scanner will scan target path and store scan result into two .yaml file created . One of them stored files result and the other one stored directory result";
+    let help_message = String::from(help_message);
     let args:Vec<String> = std::env::args().collect();
     let scan_path: PathBuf = PathBuf::new();
     let mut command: Command = Command::new(scan_path,false,false);
@@ -58,20 +62,20 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
             match args[2].as_str() {
                 "-db" => {command.db_option = true;}
                 "-yaml" => {command.yaml_option = true;}
-                _ => {panic!("[*] wrong argument\nShould be \'-db\' or \'-yaml\' or null");}
+                _ => {panic!("[*] wrong argument\nTry -h or --help to get more information!");}
             }
         }
         if args.len() > 3 {
             match args[3].as_str() {
                 "-db" => {command.db_option = true;}
                 "-yaml" => {command.yaml_option = true;}
-                _ => {panic!("[*] wrong argument\nShould be \'-db\' or \'-yaml\' or null");}
+                _ => {panic!("[*] wrong argument\nTry -h or --help to get more information!");}
             }
         }
         command.scan_path.push(args[1].clone());
     }
     else {
-        panic!("{}", "[*] Wrong arguments number!");
+        panic!("{}", "[*] Wrong arguments number! Try -h or --help to get more information!");
     }
     Ok(command)
 }

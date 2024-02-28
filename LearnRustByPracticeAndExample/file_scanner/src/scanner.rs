@@ -1,12 +1,11 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-02-28 17:26:49
+ * @LastEditTime: 2024-02-28 23:32:10
  * @Description: scan directory
  */
-use crate::{
+ use crate::{
     File,
     FileType,
-    FilePermissions,
     ScanResult,
     util::Command
 };
@@ -103,11 +102,7 @@ pub fn get_file_info(
     };
     let file_size = metadata.len();
     let file_name = String::from(file_path.file_name().ok_or("No filename")?.to_str().ok_or("No filename")?);
-    let file_permission = if metadata.permissions().readonly(){
-        FilePermissions::ReadOnly
-    } else {
-        FilePermissions::NotReadOnly
-    };
+    let read_only = metadata.permissions().readonly();
     let modified_time: DateTime<Utc> = metadata.modified()?.into();
     let accessed_time: DateTime<Utc> = metadata.accessed()?.into();
     let created_time: DateTime<Utc> = metadata.created()?.into();
@@ -121,7 +116,7 @@ pub fn get_file_info(
         modified_time,
         created_time,
         accessed_time,
-        file_permission,
+        read_only,
         vec![],
         PathBuf::new(),
         file_path
