@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-02-28 23:32:06
+ * @LastEditTime: 2024-03-01 20:42:06
  * @Description: entrance of file scanner
  */
- use file_scanner::{
+use file_scanner::{
     db,
     scanner,
     util,
@@ -25,18 +25,23 @@ use std::{
 };
 
 fn main() -> Result<(),Box<dyn Error>> {
-    println!("{}",util::show_time()?);
+    println!("Scan started at {}",util::show_time()?);
 
     let mut scan_path_list:Vec<PathBuf> = vec![];
     let command = util::parse()?;
     let scan_command = command.clone();
-    scan_path_list.push(command.scan_path);
+    scan_path_list.push(command.scan_path.clone());
+
     let (file_sender,file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
     let (directory_sender,directory_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
     let (db_file_sender,db_file_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
+    let (node_sender,node_receiver):(SyncSender<File>,Receiver<File>) = sync_channel(1024);
+
     let mut record_file_thread: JoinHandle<()>= spawn(||{});
     let mut record_directory_thread: JoinHandle<()>= spawn(||{});
     let mut db_record_thread: JoinHandle<()>= spawn(||{});
+    let mut build_tree_thread: JoinHandle<()> = spawn(||{});
+
     let scan_thread = spawn(move || {
 
         let mut scan_result = ScanResult::new(
@@ -56,6 +61,7 @@ fn main() -> Result<(),Box<dyn Error>> {
                     &file_sender,
                     &directory_sender,
                     &db_file_sender,
+                    &node_sender,
                     &scan_command
                 ){
                     Ok(ok) => ok,
@@ -93,16 +99,28 @@ fn main() -> Result<(),Box<dyn Error>> {
             }
         });
         }
+    if command.tree_option {
+        build_tree_thread = spawn(||{
+            match scanner::build_tree(node_receiver,command.scan_path) {
+                Ok(ok) => ok,
+                Err(e) => {println!("{}",e);}
+            }
+        });
+    }    
     
     scan_thread.join().unwrap();
-
+    
     if command.db_option {
         db_record_thread.join().unwrap();
     }
-    if command.yaml_option{
+    if command.yaml_option {
         record_file_thread.join().unwrap();
         record_directory_thread.join().unwrap();
     }
-    println!("{}",util::show_time()?);
+    if command.tree_option {
+        build_tree_thread.join().unwrap();
+    }
+    
+    println!("Scan completed at {}",util::show_time()?);
     Ok(())
 }

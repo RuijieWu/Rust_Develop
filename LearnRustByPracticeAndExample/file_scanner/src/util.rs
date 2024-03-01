@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-02-28 23:32:14
+ * @LastEditTime: 2024-03-01 20:35:58
  * @Description: parse command to choose job
  */
- use std::{
+use std::{
     path::PathBuf,
     env,
     error::Error,
@@ -25,31 +25,38 @@ pub struct Command {
     pub scan_path   : PathBuf,
     pub db_option   : bool,
     pub yaml_option : bool,
+    pub tree_option : bool
 }
 
 impl Command{
     fn new(
         scan_path   : PathBuf,
         db_option   : bool,
-        yaml_option : bool,    
-    ) -> Command {
-        Command {
+        yaml_option : bool,
+        tree_option : bool 
+    ) -> Self {
+        Self {
             scan_path,
             db_option,
-            yaml_option
+            yaml_option,
+            tree_option
         }
     }
 }
+
 pub fn parse() -> Result<Command,Box<dyn Error>> {
     let help_message = "./file_scanner [path] [-db]/[-yaml]
     with no arguments , file_scanner will scan target path and print the files number , directories number , the longest file name and its length
     with -db argument , file_scanner will scan target path and store scan result into sqlite database created 
-    with -yaml argument , file_scanner will scan target path and store scan result into two .yaml file created . One of them stored files result and the other one stored directory result";
+    with -yaml argument , file_scanner will scan target path and store scan result into two .yaml file created . One of them stored files result and the other one stored directory result
+    with -tree argument , file_scanner will scan target path and build a directory tree in memory";
+    
     let help_message = String::from(help_message);
     let args:Vec<String> = std::env::args().collect();
     let scan_path: PathBuf = PathBuf::new();
-    let mut command: Command = Command::new(scan_path,false,false);
-    if args.len() > 1 && args.len() < 5{
+    let mut command: Command = Command::new(scan_path,false,false,false);
+
+    if args.len() > 1 && args.len() < 6{
         match args[1].as_str() {
             "--help" | "-h" => {panic!("{}", help_message.to_string());}
             _ => {
@@ -62,6 +69,7 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
             match args[2].as_str() {
                 "-db" => {command.db_option = true;}
                 "-yaml" => {command.yaml_option = true;}
+                "-tree" => {command.tree_option = true;}
                 _ => {panic!("[*] wrong argument\nTry -h or --help to get more information!");}
             }
         }
@@ -69,6 +77,15 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
             match args[3].as_str() {
                 "-db" => {command.db_option = true;}
                 "-yaml" => {command.yaml_option = true;}
+                "-tree" => {command.tree_option = true;}
+                _ => {panic!("[*] wrong argument\nTry -h or --help to get more information!");}
+            }
+        }
+        if args.len() > 4 {
+            match args[4].as_str() {
+                "-db" => {command.db_option = true;}
+                "-yaml" => {command.yaml_option = true;}
+                "-tree" => {command.tree_option = true;}
                 _ => {panic!("[*] wrong argument\nTry -h or --help to get more information!");}
             }
         }
@@ -101,6 +118,7 @@ pub fn record_directories(file_receiver:Receiver<crate::File>) -> Result<(),Box<
     }
     Ok(())
 }
+
 pub fn show_time() -> Result<String,Box<dyn Error>> {
     let system_time = std::time::SystemTime::now();
     let date_time: DateTime<Utc> = system_time.into();
