@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:01:55
- * @LastEditTime: 2024-03-01 20:42:19
+ * @LastEditTime: 2024-03-01 21:59:57
  * @Description: Handle Database Connection and store scan result
  */
-use std::{
+ use std::{
     sync::mpsc::Receiver,
     error::Error
 };
@@ -18,13 +18,13 @@ use rusqlite::{
   
 fn init_db() -> rusqlite::Result<Connection> {
     let conn = Connection::open("file_scan.db")?;    //conn.execute(
-    conn.execute_batch(
-        "PRAGMA journal_mode = OFF;
-        PRAGMA synchronous = 0;
-        PRAGMA cache_size = 1000000;
-        PRAGMA locking_mode = EXCLUSIVE;
-        PRAGMA temp_store = MEMORY",
-    )?;
+//    conn.execute_batch(
+//        "PRAGMA journal_mode = OFF;
+//        PRAGMA synchronous = 0;
+//        PRAGMA cache_size = 1000000;
+//        PRAGMA locking_mode = EXCLUSIVE;
+//        PRAGMA temp_store = MEMORY",
+//    )?;
           
     conn.execute(
         "create table if not exists catalog (
@@ -152,8 +152,8 @@ pub fn db_record(file_receiver:Receiver<File>) -> Result<(),Box<dyn Error>>{
     let mut files:Vec<File> = Vec::new();
     for file in file_receiver {
         match file.file_type {
-            FileType::File => {catalogs.push(file);}
-            _ => {files.push(file);}
+            FileType::File => {files.push(file);}
+            _ => {catalogs.push(file);}
         }
         if catalogs.len() > 999 {
             catalogs = insert_catalogs(&mut conn,catalogs)?;

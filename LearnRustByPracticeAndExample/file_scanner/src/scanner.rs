@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-01 20:37:47
+ * @LastEditTime: 2024-03-01 22:01:16
  * @Description: scan directory
  */
-use crate::{
+ use crate::{
     File,
     FileType,
     ScanResult,
@@ -46,18 +46,18 @@ pub fn scan_directory(
         if command.tree_option {
             node_sender.send(file.clone())?;
         }
-        if command.yaml_option {
-            file_sender.send(file.clone())?;
-        }
         if command.db_option{
-            db_file_sender.send(file)?;
+            db_file_sender.send(file.clone())?;
+        }
+        if command.yaml_option {
+            file_sender.send(file)?;
         }
         return Ok(())
     }
     let mut root_dir = get_file_info(scan_path.clone())?;
     let iterator = match fs::read_dir(&scan_path) {
         Ok(ok) => ok,
-        _ => return Ok(())
+        Err(e) => {println!("{}",e);return Ok(())}
     };
     for entry in iterator {
         let entry = entry?;
@@ -73,41 +73,40 @@ pub fn scan_directory(
         }
         else{
             //println!("{:#?}\n",file);
-                scan_result.file_number += 1;
-                if file.file_name.len() > scan_result.longest_file_name.len() {
-                    scan_result.longest_file_name = file.file_name.clone();
-                }
-                if command.yaml_option {
-                    file_sender.send(file.clone())?;
-                }
-                if command.db_option{
-                    db_file_sender.send(file.clone())?;
-                }
-                if command.tree_option {
-                    node_sender.send(file.clone())?;
-                }
+            scan_result.file_number += 1;
+            if file.file_name.len() > scan_result.longest_file_name.len() {
+                scan_result.longest_file_name = file.file_name.clone();
             }
+            if command.tree_option {
+                node_sender.send(file.clone())?;
+            }
+            if command.db_option{
+                db_file_sender.send(file.clone())?;
+            }
+            if command.yaml_option {
+                file_sender.send(file)?;
+            }
+        }
     }
     scan_result.directory_number += 1;
     //println!("{:#?}\n",root_dir);
     if root_dir.file_name.len() > scan_result.longest_file_name.len() {
         scan_result.longest_file_name = root_dir.file_name.clone();
     }
-    if command.yaml_option {
-        directory_sender.send(root_dir.clone())?;
+    if command.tree_option{
+        node_sender.send(root_dir.clone())?;
     }
     if command.db_option{
         db_file_sender.send(root_dir.clone())?;
     }
-    if command.tree_option{
-        node_sender.send(root_dir.clone())?;
+    if command.yaml_option {
+        directory_sender.send(root_dir)?;
     }
+
     Ok(())
 }
 
-fn get_file_info(
-    file_path:PathBuf,
-) -> Result<File,Box<dyn Error>> {
+fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
     let metadata = fs::metadata(&file_path)?;
     let file_type = match metadata.is_dir() {
         true => FileType::Directory,
@@ -141,40 +140,29 @@ fn find<'a>(root: &'a mut NodeDir, name: &'a String) -> Option<&'a mut NodeDir> 
     if root.dir_name == *name {
         return Some(root);
     }
-    for dir in root.sub_dirs.iter_mut() {
-        if let Some(found) = find(dir, name) {
-            return Some(found);
-        }
-    }
-    None
+    root.sub_dirs.iter_mut().find_map(|dir| find(dir, name))
 }
 
-pub fn build_tree(node_receiver: Receiver<File>,scan_path: PathBuf) -> Result<(),Box<dyn Error>>{
+pub fn build_tree(node_receiver: Receiver<File>, scan_path: PathBuf) -> Result<(), Box<dyn Error>> {
     let directory = scan_path.file_name().unwrap().to_str().unwrap().to_string();
-    //let mut root = NodeDir::new(get_file_info(scan_path)?.file_name);
     let mut root = NodeDir::new(directory.clone());
-    let mut dir_list:Vec<String> = vec![directory];
+    let mut dir_list: Vec<String> = vec![directory.to_string()];
+
     for node in node_receiver {
-            let mut flag = false;
-            let parent_directory = node.file_path.parent().unwrap().file_name().unwrap().to_str().unwrap().to_string();
-            for dir in &dir_list {
-                if  *dir == parent_directory {
-                    match node.file_type{
-                        FileType::Directory =>{
-                            (*find(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node.file_name.clone()));
-                            flag = true;
-                        }
-                        _ => {
-                            (*find(&mut root,&parent_directory).unwrap()).add_sub_file(NodeFile::new(node.file_name.clone()))
-                        }
-                    }
-                    break
+        let parent_directory = node.file_path.parent().and_then(|p| p.file_name()).and_then(|f| f.to_str()).ok_or("Invalid file path")?.to_string();
+        if let Some(parent_node) = find(&mut root, &parent_directory) {
+            match node.file_type {
+                FileType::Directory => {
+                    parent_node.add_sub_dir(NodeDir::new(node.file_name.clone()));
+                    dir_list.push(node.file_name);
+                }
+                _ => {
+                    parent_node.add_sub_file(NodeFile::new(node.file_name.clone()));
                 }
             }
-            if flag {
-                dir_list.push(node.file_name);
-            }
+        }
     }
+
     root.show();
     Ok(())
 }

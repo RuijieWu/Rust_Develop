@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-03-01 20:42:06
+ * @LastEditTime: 2024-03-01 22:01:05
  * @Description: entrance of file scanner
  */
-use file_scanner::{
+ use file_scanner::{
     db,
     scanner,
     util,
@@ -25,7 +25,7 @@ use std::{
 };
 
 fn main() -> Result<(),Box<dyn Error>> {
-    println!("Scan started at {}",util::show_time()?);
+    println!("Scan started at {}",util::ctime()?);
 
     let mut scan_path_list:Vec<PathBuf> = vec![];
     let command = util::parse()?;
@@ -121,6 +121,6 @@ fn main() -> Result<(),Box<dyn Error>> {
         build_tree_thread.join().unwrap();
     }
     
-    println!("Scan completed at {}",util::show_time()?);
+    println!("Scan completed at {}",util::ctime()?);
     Ok(())
 }
