@@ -1,7 +1,7 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-03-01 21:46:07
- * @Description: parse command to choose job
+ * @LastEditTime: 2024-03-02 00:47:07
+ * @Description: parse command to choose workflow
  */
  use std::{
     path::PathBuf,

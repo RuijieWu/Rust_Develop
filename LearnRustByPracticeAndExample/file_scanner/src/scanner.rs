@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-01 22:01:16
+ * @LastEditTime: 2024-03-02 00:46:38
  * @Description: scan directory
  */
  use crate::{
@@ -57,22 +57,26 @@ pub fn scan_directory(
     let mut root_dir = get_file_info(scan_path.clone())?;
     let iterator = match fs::read_dir(&scan_path) {
         Ok(ok) => ok,
-        Err(e) => {println!("{}",e);return Ok(())}
+        Err(_e) => {//println!("{}",e);
+            return Ok(())}
     };
     for entry in iterator {
         let entry = entry?;
         let path = entry.path();
         let mut file = match get_file_info(path) {
             Ok(ok) => ok,
-            Err(e) => {println!("{}",e);continue}
+            Err(_e) => {//println!("{}",e);
+                continue}
         };
         file.parent_directory = scan_path.clone();
         root_dir.sub_files.push(PathBuf::from(&file.file_name));
+        if root_dir.file_name.len() > scan_result.longest_file_name.len() {
+            scan_result.longest_file_name = root_dir.file_name.clone();
+        }
         if let FileType::Directory = file.file_type  {
             scan_path_list.push(file.file_path);
         }
         else{
-            //println!("{:#?}\n",file);
             scan_result.file_number += 1;
             if file.file_name.len() > scan_result.longest_file_name.len() {
                 scan_result.longest_file_name = file.file_name.clone();
@@ -89,10 +93,6 @@ pub fn scan_directory(
         }
     }
     scan_result.directory_number += 1;
-    //println!("{:#?}\n",root_dir);
-    if root_dir.file_name.len() > scan_result.longest_file_name.len() {
-        scan_result.longest_file_name = root_dir.file_name.clone();
-    }
     if command.tree_option{
         node_sender.send(root_dir.clone())?;
     }
@@ -101,7 +101,7 @@ pub fn scan_directory(
     }
     if command.yaml_option {
         directory_sender.send(root_dir)?;
-    }
+    }    
 
     Ok(())
 }
@@ -143,13 +143,45 @@ fn find<'a>(root: &'a mut NodeDir, name: &'a String) -> Option<&'a mut NodeDir> 
     root.sub_dirs.iter_mut().find_map(|dir| find(dir, name))
 }
 
+pub fn build_tree(node_receiver: Receiver<File>,scan_path: PathBuf) -> Result<(),Box<dyn Error>>{
+    let directory = scan_path.file_name().unwrap().to_str().unwrap().to_string();
+    let mut root = NodeDir::new(directory.clone());
+    let mut dir_list:Vec<String> = vec![directory];
+    for node in node_receiver {
+        //println!("{:?}",node.file_path);
+            let parent_directory = match node.file_path.parent().unwrap().file_name(){
+                Some(path) => path.to_str().unwrap().to_string(),
+                _ => {println!("{:?}",node.file_path.parent().unwrap());"C:\\\\".to_string()}
+            };
+            for dir in &dir_list {
+                if  *dir == parent_directory {
+                    match node.file_type{
+                        FileType::Directory =>{
+                            (*find(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node.file_name.clone()));
+                            dir_list.push(node.file_name);
+                        }
+                        _ => {
+                            (*find(&mut root,&parent_directory).unwrap()).add_sub_file(NodeFile::new(node.file_name.clone()))
+                        }
+                    }
+                    break
+                }
+            }
+    }
+    root.show();
+    Ok(())
+}
+
+/*
 pub fn build_tree(node_receiver: Receiver<File>, scan_path: PathBuf) -> Result<(), Box<dyn Error>> {
     let directory = scan_path.file_name().unwrap().to_str().unwrap().to_string();
     let mut root = NodeDir::new(directory.clone());
     let mut dir_list: Vec<String> = vec![directory.to_string()];
 
     for node in node_receiver {
+        println!("{:?}",node.file_path);
         let parent_directory = node.file_path.parent().and_then(|p| p.file_name()).and_then(|f| f.to_str()).ok_or("Invalid file path")?.to_string();
+        println!("{:?}",parent_directory);
         if let Some(parent_node) = find(&mut root, &parent_directory) {
             match node.file_type {
                 FileType::Directory => {
@@ -166,3 +198,4 @@ pub fn build_tree(node_receiver: Receiver<File>, scan_path: PathBuf) -> Result<(
     root.show();
     Ok(())
 }
+*/

@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:01:55
- * @LastEditTime: 2024-03-01 21:59:57
+ * @LastEditTime: 2024-03-02 00:03:06
  * @Description: Handle Database Connection and store scan result
  */
  use std::{
@@ -47,13 +47,14 @@ fn init_db() -> rusqlite::Result<Connection> {
         accessed_time varchar(25),
         read_only bool
         );",
+//      foreign key (catalog)
+//      references catalog(dir_name)
+//      on delete cascade
         []
     )?;
-    //    foreign key (catalog)
-    //    references catalog(dir_name)
-    //    on delete cascade
     Ok(conn)
 }
+
 #[allow(dead_code)]
 fn insert_data(conn:&Connection,file:File) -> rusqlite::Result<()> {
     if let FileType::Directory = file.file_type{
@@ -88,7 +89,7 @@ fn insert_data(conn:&Connection,file:File) -> rusqlite::Result<()> {
         )?;
     }
     Ok(())
-  }
+}
   
 fn insert_catalogs(conn:&mut Connection,catalogs:Vec<File>) -> rusqlite::Result<Vec<File>> {
     let mut insert_str = "(?, ?, ?, ?, ?),".repeat(catalogs.len());

@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-03-01 22:01:05
+ * @LastEditTime: 2024-03-02 00:00:44
  * @Description: entrance of file scanner
  */
  use file_scanner::{
@@ -98,7 +98,7 @@ fn main() -> Result<(),Box<dyn Error>> {
                 Err(e) => {println!("{}",e);}
             }
         });
-        }
+    }
     if command.tree_option {
         build_tree_thread = spawn(||{
             match scanner::build_tree(node_receiver,command.scan_path) {
