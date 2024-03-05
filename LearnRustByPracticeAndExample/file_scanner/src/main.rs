@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-03-05 12:04:11
+ * @LastEditTime: 2024-03-05 15:24:08
  * @Description: entrance of file scanner
  */
 use file_scanner::{
@@ -73,7 +73,7 @@ fn main() -> Result<(),Box<dyn Error>> {
                     &scan_command
                 ){
                     Ok(ok) => ok,
-                    Err(e) => {println!("{}",e);}
+                    Err(e) => {eprintln!("{}",e);}
                 };
                 scan_path_list.remove(0);
             }
@@ -91,13 +91,13 @@ fn main() -> Result<(),Box<dyn Error>> {
         record_file_thread = spawn(||{
             match util::record_files(file_receiver){
                 Ok(ok) => ok,
-                Err(e) => {println!("{}",e);}
+                Err(e) => {eprintln!("{}",e);}
             };
         });
         record_directory_thread = spawn(||{
             match util::record_directories(directory_receiver){
                 Ok(ok) => ok,
-                Err(e) => {println!("{}",e);}
+                Err(e) => {eprintln!("{}",e);}
             };
         });
     }
@@ -105,7 +105,7 @@ fn main() -> Result<(),Box<dyn Error>> {
         db_record_thread = spawn(||{
             match db::db_record(db_file_receiver) {
                 Ok(ok) => ok,
-                Err(e) => {println!("{}",e);}
+                Err(e) => {eprintln!("{}",e);}
             }
         });
     }
@@ -113,7 +113,7 @@ fn main() -> Result<(),Box<dyn Error>> {
         build_tree_thread = spawn(||{
             match scanner::build_tree(node_receiver,command.scan_path,tree_sender) {
                 Ok(ok) => ok,
-                Err(e) => {println!("{}",e);}
+                Err(e) => {eprintln!("{}",e);}
             }
         });
     }    

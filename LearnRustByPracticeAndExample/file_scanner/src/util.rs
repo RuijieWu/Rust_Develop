@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-03-05 12:04:25
+ * @LastEditTime: 2024-03-05 12:17:03
  * @Description: parse command to choose workflow
  */
 use std::{
@@ -69,13 +69,13 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
 
     if args.len() > 1 && args.len() < 6{
         if let "-read" = args[1].as_str() {
-            command.scan_path.push("/Users/jerywu/Develop/Rust_Develop".to_string());
+            command.scan_path.push("C:\\Windows".to_string());
             command.read_option = true;
             command.tree_option = true;
             return Ok(command)
         }
         else if let "-operation" = args[1].as_str() {
-            command.scan_path.push("/Users/jerywu/Develop/Rust_Develop".to_string());
+            command.scan_path.push("C:\\Windows".to_string());
             command.operation_option = true;
             command.tree_option = true;
             return Ok(command)

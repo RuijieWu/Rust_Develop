@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-05 12:04:19
+ * @LastEditTime: 2024-03-05 15:22:38
  * @Description: scan directory
  */
 use crate::{
@@ -188,56 +188,34 @@ pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut 
 pub fn build_tree(
     node_receiver: Receiver<File>,
     scan_path: PathBuf,
-    tree_sender: SyncSender<NodeDir>
-) -> Result<(),Box<dyn Error>>{
+    tree_sender: SyncSender<NodeDir>,
+) -> Result<(), Box<dyn Error>> {
     let mut root = NodeDir::new(get_file_info(scan_path.clone())?);
-    let mut dir_list:Vec<PathBuf> = vec![scan_path];
+    let mut dir_list: Vec<PathBuf> = vec![scan_path];
     for node in node_receiver {
-            let mut parent_directory = node.file_path.clone();
-            parent_directory.pop();
-            for dir in &dir_list {
-                if  *dir == parent_directory {
-                    match node.file_type{
-                        FileType::Directory =>{
-                            dir_list.push(node.file_path.clone());
-                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node));
-                        }
-                        _ => {
-                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_file(node);
-                        }
+        let mut parent_directory = node.file_path.clone();
+        parent_directory.pop();
+        if dir_list.contains(&parent_directory) {
+            match node.file_type {
+                FileType::Directory => {
+                    dir_list.push(node.file_path.clone());
+                    if let Some(parent_dir) = find_dir(&mut root, &parent_directory) {
+                        parent_dir.add_sub_dir(NodeDir::new(node));
+                    } else {
+                        eprintln!("[*] Directory not found: {:?}", parent_directory);
                     }
-                    break
+                }
+                _ => {
+                    if let Some(parent_dir) = find_dir(&mut root, &parent_directory) {
+                        parent_dir.add_sub_file(node);
+                    } else {
+                        eprintln!("[*] Directory not found: {:?}", parent_directory);
+                    }
                 }
             }
+        }
     }
     tree_sender.send(root)?;
     Ok(())
 }
 
-/*
-pub fn build_tree(node_receiver: Receiver<File>, scan_path: PathBuf) -> Result<(), Box<dyn Error>> {
-    let directory = scan_path.file_name().unwrap().to_str().unwrap().to_string();
-    let mut root = NodeDir::new(directory.clone());
-    let mut dir_list: Vec<String> = vec![directory.to_string()];
-
-    for node in node_receiver {
-        println!("{:?}",node.file_path);
-        let parent_directory = node.file_path.parent().and_then(|p| p.file_name()).and_then(|f| f.to_str()).ok_or("Invalid file path")?.to_string();
-        println!("{:?}",parent_directory);
-        if let Some(parent_node) = find(&mut root, &parent_directory) {
-            match node.file_type {
-                FileType::Directory => {
-                    parent_node.add_sub_dir(NodeDir::new(node.file_name.clone()));
-                    dir_list.push(node.file_name);
-                }
-                _ => {
-                    parent_node.add_sub_file(NodeFile::new(node.file_name.clone()));
-                }
-            }
-        }
-    }
-
-    root.show();
-    Ok(())
-}
-*/
