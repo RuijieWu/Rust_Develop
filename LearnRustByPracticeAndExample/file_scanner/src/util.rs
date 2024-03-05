@@ -1,13 +1,16 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-03-02 00:47:07
+ * @LastEditTime: 2024-03-05 12:04:25
  * @Description: parse command to choose workflow
  */
- use std::{
+use std::{
     path::PathBuf,
     env,
     error::Error,
-    fs::File,
+    fs::{
+        File,
+        read_to_string
+    },
     sync::mpsc::Receiver
 };
 use crate::FileType;
@@ -15,25 +18,39 @@ use serde_yaml::to_writer;
 use chrono::prelude::*;
 
 #[derive(Debug,Clone)]
+pub enum Operation {
+    Add(u64,u64),
+    Delete,
+    Modify(u64,u64),
+    None
+}
+
+#[derive(Debug,Clone)]
 pub struct Command {
-    pub scan_path   : PathBuf,
-    pub db_option   : bool,
-    pub yaml_option : bool,
-    pub tree_option : bool
+    pub scan_path       : PathBuf,
+    pub db_option       : bool,
+    pub yaml_option     : bool,
+    pub tree_option     : bool,
+    pub read_option     : bool,
+    pub operation_option: bool
 }
 
 impl Command{
     fn new(
-        scan_path   : PathBuf,
-        db_option   : bool,
-        yaml_option : bool,
-        tree_option : bool 
+        scan_path       : PathBuf,
+        db_option       : bool,
+        yaml_option     : bool,
+        tree_option     : bool,
+        read_option     : bool,
+        operation_option:bool
     ) -> Self {
         Self {
             scan_path,
             db_option,
             yaml_option,
-            tree_option
+            tree_option,
+            read_option,
+            operation_option
         }
     }
 }
@@ -48,9 +65,21 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
     let help_message = String::from(help_message);
     let args:Vec<String> = std::env::args().collect();
     let scan_path: PathBuf = PathBuf::new();
-    let mut command: Command = Command::new(scan_path,false,false,false);
+    let mut command: Command = Command::new(scan_path,false,false,false,false,false);
 
     if args.len() > 1 && args.len() < 6{
+        if let "-read" = args[1].as_str() {
+            command.scan_path.push("/Users/jerywu/Develop/Rust_Develop".to_string());
+            command.read_option = true;
+            command.tree_option = true;
+            return Ok(command)
+        }
+        else if let "-operation" = args[1].as_str() {
+            command.scan_path.push("/Users/jerywu/Develop/Rust_Develop".to_string());
+            command.operation_option = true;
+            command.tree_option = true;
+            return Ok(command)
+        }
         match args[1].as_str() {
             "--help" | "-h" => {panic!("{}", help_message);}
             _ => {
@@ -116,6 +145,56 @@ pub fn record_directories(file_receiver:Receiver<crate::File>) -> Result<(),Box<
         }
     }
     Ok(())
+}
+
+pub fn read_mystat() -> Result<Vec<PathBuf>,Box<dyn Error>>{
+    let mut dir_list: Vec<PathBuf> = vec![];
+    let content =  read_to_string("mystat.txt")?;
+    for line in content.lines() {
+        dir_list.push(PathBuf::from(line));
+    }
+    Ok(dir_list)
+}
+
+pub fn read_myfiles() -> Result<(Vec<PathBuf>,Vec<Operation>),Box<dyn Error>> {
+    let mut dir_list: Vec<PathBuf> = vec![];
+    let mut operation_list: Vec<Operation> = vec![];
+    let content = read_to_string("myfiles.txt")?;
+    for line in content.lines() {
+        let mut path = line.to_string();
+        let mut operation = Operation::None;
+        if line.contains(',') {
+            let mut time:u64 = 0;
+            let mut size:u64 = 0;    
+            let mut count = 1;
+            for iter in line.to_string().split(',') {
+                match count {
+                    1 => {path = iter.to_string();}
+                    2 => {
+                        match iter {
+                            "D" => {operation = Operation::Delete;break;},
+                            "A" => {operation = Operation::Add(0,0);},
+                            "M" => {operation = Operation::Modify(0,0);},
+                            _ => {break;}
+                        };
+                    }
+                    3 => {time = iter.parse::<u64>()?;}
+                    4 => {size = iter.parse::<u64>()?;}
+                    _ => {break;}
+                }
+                count += 1;
+            }
+            if let Operation::Add(_,_) = operation {
+                operation = Operation::Add(time,size);
+            }
+            if let Operation::Modify(_,_) = operation {
+                operation = Operation::Modify(time,size);
+            }
+        }
+        operation_list.push(operation);
+        dir_list.push(PathBuf::from(path));
+    }
+    Ok((dir_list,operation_list))
 }
 
 pub fn ctime() -> Result<String,Box<dyn Error>> {

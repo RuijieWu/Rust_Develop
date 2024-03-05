@@ -1,6 +1,6 @@
 /*
 * @Date: 2024-02-26 08:01:49
- * @LastEditTime: 2024-03-02 00:02:22
+ * @LastEditTime: 2024-03-05 12:04:04
 * @Description: basic functions and structures
 */
 pub mod db;
@@ -13,9 +13,9 @@ use serde::{
     Deserialize
 };
 
-fn print_by_ident(n: &NodeDir, level: usize) {
+fn print_by_ident(n: &NodeDir, level: usize, dir_list: &mut Vec<NodeDir>) {
     let ident = "─".repeat(level);
-    println!("│{} {}", ident, n.dir_name);
+    println!("│{} {}", ident, n.dir_info.file_name);
     let ident = " ".repeat(level);
     for i in 0..n.sub_files.len() {
         if i == n.sub_files.len()-1 {
@@ -27,20 +27,30 @@ fn print_by_ident(n: &NodeDir, level: usize) {
     }
  
     for node in &n.sub_dirs {
-        print_by_ident(node, level + 1);
+        dir_list.push(node.clone());
     }
+}
+
+pub fn find_string_difference(str1: &str, str2: &str) -> String {
+    let mut result = String::new();
+    
+    for (i, (char1, char2)) in str1.chars().zip(str2.chars()).enumerate() {
+        if char1 != char2 {
+            result.push(char1);
+            result.push(char2);
+            result.push_str(&str1.chars().skip(i + 1).collect::<String>());
+            break;
+        }
+    }
+
+    result
 }
 
 #[derive(Debug,Clone)]
 pub struct NodeDir {
-    dir_name: String,
-    sub_dirs: Vec<NodeDir>,
-    sub_files: Vec<NodeFile>
-}
-
-#[derive(Debug,Clone)]
-pub struct NodeFile {
-    file_name: String
+    pub dir_info: File,
+    pub sub_dirs: Vec<NodeDir>,
+    pub sub_files: Vec<File>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -57,6 +67,7 @@ pub struct File {
     pub modified_time: String,
     pub created_time: String,
     pub accessed_time: String,
+    pub created_duration_time: u64,
     pub read_only: bool,
     pub sub_files: Vec<PathBuf>,
     pub parent_directory: PathBuf,
@@ -95,6 +106,7 @@ impl File {
         modified_time: String,
         created_time: String,
         accessed_time: String,
+        created_duration_time: u64,
         read_only: bool,
         sub_files: Vec<PathBuf>,
         parent_directory: PathBuf,
@@ -107,6 +119,7 @@ impl File {
             modified_time,
             created_time,
             accessed_time,
+            created_duration_time,
             read_only,
             sub_files,
             parent_directory,
@@ -116,29 +129,29 @@ impl File {
 }
  
 impl NodeDir {
-    fn new(dir_name: String) -> Self {
+    pub fn new(dir_info: File) -> Self {
         Self {
-            dir_name,
+            dir_info,
             sub_dirs:vec![],
             sub_files:vec![]
         }
     }
-    fn add_sub_dir(&mut self,sub_dir:NodeDir) {
+    pub fn add_sub_dir(&mut self,sub_dir:NodeDir) {
         self.sub_dirs.push(sub_dir);
     }
-    fn add_sub_file(&mut self,sub_dir:NodeFile) {
-        self.sub_files.push(sub_dir);
+    pub fn add_sub_file(&mut self,sub_file:File) {
+        self.sub_files.push(sub_file);
     }
-    fn show(&self) {
-        print_by_ident(self, 0);
-        println!("│");
-    }
-}
-
-impl NodeFile {
-    fn new(file_name: String) -> Self {
-        Self {
-            file_name
+    pub fn show(&self) {
+        let mut dir_list = vec![self.clone()];
+        let mut level = 0;
+        while dir_list.len() > 0 {
+            for dir in &dir_list.clone() {
+                print_by_ident(dir, level,&mut dir_list);
+                dir_list.remove(0);
+            }
+            level += 1;
         }
+        println!("│");
     }
 }

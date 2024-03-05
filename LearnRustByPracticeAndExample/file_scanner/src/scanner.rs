@@ -1,14 +1,13 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-02 00:46:38
+ * @LastEditTime: 2024-03-05 12:04:19
  * @Description: scan directory
  */
- use crate::{
+use crate::{
     File,
     FileType,
     ScanResult,
     NodeDir,
-    NodeFile,
     util::Command
 };
 use std::{
@@ -18,7 +17,8 @@ use std::{
     sync::mpsc::{
         SyncSender,
         Receiver
-    }
+    },
+    time::SystemTime,
 };
 use chrono::prelude::*;
 
@@ -60,6 +60,9 @@ pub fn scan_directory(
         Err(_e) => {//println!("{}",e);
             return Ok(())}
     };
+    if command.tree_option{
+        node_sender.send(root_dir.clone())?;
+    }    
     for entry in iterator {
         let entry = entry?;
         let path = entry.path();
@@ -92,21 +95,58 @@ pub fn scan_directory(
             }
         }
     }
-    scan_result.directory_number += 1;
-    if command.tree_option{
-        node_sender.send(root_dir.clone())?;
-    }
     if command.db_option{
         db_file_sender.send(root_dir.clone())?;
     }
     if command.yaml_option {
         directory_sender.send(root_dir)?;
-    }    
-
+    }  
+    scan_result.directory_number += 1;  
     Ok(())
 }
 
-fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
+pub fn get_dir_info(node:&NodeDir) -> Result<String,Box<dyn Error>> {
+    //file_info:(FileName,FileSize,CreatedTime)
+    let mut earliest_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+    let mut latest_time:u64 = 0;
+    let mut earliest_file = File::new(FileType::File,String::new(),0,String::new(),String::new(),String::new(),0,false,vec![],PathBuf::new(),PathBuf::new());
+    let mut latest_file = File::new(FileType::File,String::new(),0,String::new(),String::new(),String::new(),0,false,vec![],PathBuf::new(),PathBuf::new());
+    let total_file_number = node.sub_files.len() + node.sub_dirs.len();
+    let mut total_file_size: u64 = 0;
+    for file in &node.sub_files {
+        if file.created_duration_time > latest_time {
+            latest_file = file.clone();
+            latest_time = file.created_duration_time;
+        }
+        if file.created_duration_time < earliest_time {
+            earliest_file = file.clone();
+            earliest_time = file.created_duration_time;
+        }
+        total_file_size += file.file_size;
+    }
+    let mut output = String::new();
+    output.push_str(format![
+        "[*] In directory {:#?}, there are {} files and the total file size is {} bytes\n",
+        node.dir_info.file_path,
+        total_file_number,
+        total_file_size
+    ].as_str());
+    output.push_str(format![
+        "[*] The latest file is {} , created at {} and it occupies {} bytes of space.\n",
+        latest_file.file_name,
+        latest_file.created_time,
+        latest_file.file_size
+    ].as_str());
+    output.push_str(format![
+        "[*] The earliest file is {} , created at {} and it occupies {} bytes of space.\n",
+        earliest_file.file_name,
+        earliest_file.created_time,
+        earliest_file.file_size
+    ].as_str());
+    Ok(output)
+}
+
+pub fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
     let metadata = fs::metadata(&file_path)?;
     let file_type = match metadata.is_dir() {
         true => FileType::Directory,
@@ -121,6 +161,7 @@ fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
     let modified_time = modified_time.format("%c").to_string();
     let accessed_time = accessed_time.format("%c").to_string();
     let created_time = created_time.format("%c").to_string();
+    let created_duration_time = metadata.created()?.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
     let file = File::new(            
         file_type,
         file_name,
@@ -128,6 +169,7 @@ fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
         modified_time,
         created_time,
         accessed_time,
+        created_duration_time,
         read_only,
         vec![],
         PathBuf::new(),
@@ -136,39 +178,39 @@ fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
     Ok(file)
 }
 
-fn find<'a>(root: &'a mut NodeDir, name: &'a String) -> Option<&'a mut NodeDir> {
-    if root.dir_name == *name {
+pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
+    if root.dir_info.file_path == *name {
         return Some(root);
     }
-    root.sub_dirs.iter_mut().find_map(|dir| find(dir, name))
+    root.sub_dirs.iter_mut().find_map(|dir| find_dir(dir, name))
 }
 
-pub fn build_tree(node_receiver: Receiver<File>,scan_path: PathBuf) -> Result<(),Box<dyn Error>>{
-    let directory = scan_path.file_name().unwrap().to_str().unwrap().to_string();
-    let mut root = NodeDir::new(directory.clone());
-    let mut dir_list:Vec<String> = vec![directory];
+pub fn build_tree(
+    node_receiver: Receiver<File>,
+    scan_path: PathBuf,
+    tree_sender: SyncSender<NodeDir>
+) -> Result<(),Box<dyn Error>>{
+    let mut root = NodeDir::new(get_file_info(scan_path.clone())?);
+    let mut dir_list:Vec<PathBuf> = vec![scan_path];
     for node in node_receiver {
-        //println!("{:?}",node.file_path);
-            let parent_directory = match node.file_path.parent().unwrap().file_name(){
-                Some(path) => path.to_str().unwrap().to_string(),
-                _ => {println!("{:?}",node.file_path.parent().unwrap());"C:\\\\".to_string()}
-            };
+            let mut parent_directory = node.file_path.clone();
+            parent_directory.pop();
             for dir in &dir_list {
                 if  *dir == parent_directory {
                     match node.file_type{
                         FileType::Directory =>{
-                            (*find(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node.file_name.clone()));
-                            dir_list.push(node.file_name);
+                            dir_list.push(node.file_path.clone());
+                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node));
                         }
                         _ => {
-                            (*find(&mut root,&parent_directory).unwrap()).add_sub_file(NodeFile::new(node.file_name.clone()))
+                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_file(node);
                         }
                     }
                     break
                 }
             }
     }
-    root.show();
+    tree_sender.send(root)?;
     Ok(())
 }
 
