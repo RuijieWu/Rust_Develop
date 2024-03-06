@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-05 15:22:38
+ * @LastEditTime: 2024-03-06 13:43:21
  * @Description: scan directory
  */
-use crate::{
+ use crate::{
     File,
     FileType,
     ScanResult,
@@ -178,13 +178,29 @@ pub fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
     Ok(file)
 }
 
+/* 
 pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
     if root.dir_info.file_path == *name {
         return Some(root);
     }
     root.sub_dirs.iter_mut().find_map(|dir| find_dir(dir, name))
 }
+*/
+pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
+    let mut stack = Vec::new();
+    stack.push(root);
 
+    while let Some(node) = stack.pop() {
+        if node.dir_info.file_path == *name {
+            return Some(node);
+        }
+        for sub_dir in &mut node.sub_dirs {
+            stack.push(sub_dir);
+        }
+    }
+
+    None
+}
 pub fn build_tree(
     node_receiver: Receiver<File>,
     scan_path: PathBuf,
@@ -219,3 +235,41 @@ pub fn build_tree(
     Ok(())
 }
 
+/*
+pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
+    if root.dir_info.file_path == *name {
+        return Some(root);
+    }
+    root.sub_dirs.iter_mut().find_map(|dir| find_dir(dir, name))
+}
+
+pub fn build_tree(
+    node_receiver: Receiver<File>,
+    scan_path: PathBuf,
+    tree_sender: SyncSender<NodeDir>
+) -> Result<(),Box<dyn Error>>{
+    let mut root = NodeDir::new(get_file_info(scan_path.clone())?);
+    let mut dir_list:Vec<PathBuf> = vec![scan_path];
+    for node in node_receiver {
+            let mut parent_directory = node.file_path.clone();
+            parent_directory.pop();
+            for dir in &dir_list {
+                if  *dir == parent_directory {
+                    match node.file_type{
+                        FileType::Directory =>{
+                            dir_list.push(node.file_path.clone());
+                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node));
+                        }
+                        _ => {
+                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_file(node);
+                        }
+                    }
+                    break
+                }
+            }
+    }
+    tree_sender.send(root)?;
+    Ok(())
+}
+
+*/

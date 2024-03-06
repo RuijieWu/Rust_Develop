@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-26 08:01:55
- * @LastEditTime: 2024-03-05 12:03:57
+ * @LastEditTime: 2024-03-06 14:42:08
  * @Description: Handle Database Connection and store scan result
  */
-use std::{
+ use std::{
     sync::mpsc::Receiver,
     error::Error
 };

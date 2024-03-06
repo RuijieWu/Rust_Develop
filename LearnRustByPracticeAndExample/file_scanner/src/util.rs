@@ -1,9 +1,9 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-03-05 12:17:03
+ * @LastEditTime: 2024-03-06 14:44:24
  * @Description: parse command to choose workflow
  */
-use std::{
+ use std::{
     path::PathBuf,
     env,
     error::Error,
@@ -60,7 +60,9 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
     with no arguments , file_scanner will scan target path and print the files number , directories number , the longest file name and its length
     with -db argument , file_scanner will scan target path and store scan result into sqlite database created 
     with -yaml argument , file_scanner will scan target path and store scan result into two .yaml file created . One of them stored files result and the other one stored directory result
-    with -tree argument , file_scanner will scan target path and build a directory tree in memory";
+    with -tree argument , file_scanner will scan target path and build a directory tree in memory
+    with -read argument , file_scanner will read mystat.txt and scan paths from it
+    with -operation argument , file_scanner will read myfiles.txt and operate opertions from it";
     
     let help_message = String::from(help_message);
     let args:Vec<String> = std::env::args().collect();
@@ -69,13 +71,13 @@ pub fn parse() -> Result<Command,Box<dyn Error>> {
 
     if args.len() > 1 && args.len() < 6{
         if let "-read" = args[1].as_str() {
-            command.scan_path.push("C:\\Windows".to_string());
+            command.scan_path = env::current_dir()?;
             command.read_option = true;
             command.tree_option = true;
             return Ok(command)
         }
         else if let "-operation" = args[1].as_str() {
-            command.scan_path.push("C:\\Windows".to_string());
+            command.scan_path = env::current_dir()?;
             command.operation_option = true;
             command.tree_option = true;
             return Ok(command)
