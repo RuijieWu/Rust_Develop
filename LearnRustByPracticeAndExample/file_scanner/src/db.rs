@@ -1,9 +1,14 @@
 /*
  * @Date: 2024-02-26 08:01:55
- * @LastEditTime: 2024-03-06 14:42:08
- * @Description: Handle Database Connection and store scan result
- */
- use std::{
+ * @LastEditTime: 2024-03-06 15:55:56
+ * @Description: b本文件实现了程序与数据库相关的操作
+ * init_db 函数会初始化数据库 ， 创建 File 与 Catalog 两张表 ， 并返回一个数据库的连接
+ * insert_data 函数接收与数据库的连接与 File 实例 ， 会根据 File 实例的 FileType 将其插入到对应表中
+ * insert_catalogs 函数会批量地将 Directory 类型的 File 实例插入到 catalog 表中
+ * insert_files 函数会批量地将 File 类型的 File 实例插入到 file 表中
+ * db_record 函数是 db 线程的主体 ， 它会接收扫描线程发来的 File 实例 ， 当对应类型的 File 实例达到一定数量后进行批量插入
+*/
+use std::{
     sync::mpsc::Receiver,
     error::Error
 };

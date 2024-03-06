@@ -1,7 +1,13 @@
 /*
  * @Date: 2024-02-26 08:01:36
- * @LastEditTime: 2024-03-06 14:42:22
- * @Description: entrance of file scanner
+ * @LastEditTime: 2024-03-06 15:36:50
+ * @Description: main函数是启动其他线程的主线程，它会调用解析指令获取命令行参数指令，根据指令创建线程，然后等待所有线程运行结束，针对指令的不同进行不同的输出
+ * scan 线程会迭代调用 scan_directory 函数 ， 然后统计扫描目录的深度 ， 文件与目录的个数 ， 文件名最长的文件的文件名及其文件名长度并记录扫描开始与结束的时间
+ * 如果开启了 -yaml 选项 ， main 函数会启动 record 线程 ， 该线程会接收扫描线程的扫描结果 ， 并将扫描结果分为文件与目录分别序列化到当前目录下的文件中保存
+ * 如果开启了 -db 选项 ， main 函数会启动 db 线程 ， 该线程会接收扫描线程的扫描结果 ， 并将扫描结果放入到数据库的 file 与 catalog 两张表中保存 ， 数据库文件会被放在当前目录下并命名为 file_scan.db
+ * 如果开启了 -tree 选项 ， main 函数会启动 build_tree 线程 ， 该线程会接收扫描线程的扫描结果 ， 并在内存中建立与扫描目录结构相同的目录树，在未开启 -read 与 -operation 选项的情况下 ， main 函数会像 tree 程序一样打印目录树的结构
+ * 如果开启了 -read 选项 ， main 函数会启动 build_tree 线程并读取 mystat.txt 文件 ， 并执行批量扫描
+ * 如果开启了 -operation 选项 ， main 函数会启动 build_tree 线程并读取 myfiles.txt 文件 ， 并在内存中建立的树上执行文件中的模拟操作
  */
  use file_scanner::{
     db,

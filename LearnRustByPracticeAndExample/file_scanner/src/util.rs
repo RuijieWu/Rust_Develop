@@ -1,9 +1,17 @@
 /*
  * @Date: 2024-02-27 09:16:10
- * @LastEditTime: 2024-03-06 14:44:24
- * @Description: parse command to choose workflow
+ * @LastEditTime: 2024-03-06 15:16:39
+ * @Description: 这个文件负责程序中通用与杂项功能的实现
+ * Operation 是一个枚举类型，用来表示读取到的 myfiles . txt 或 mystat . txt 中需要进行的操作，即删除，添加，修改 或 无操作
+ * Command 是一个结构体，用于存储命令行参数的解析结果 , 告诉主线程与扫描线程需要执行哪些操作 ， 他实现了 new 方法，用于快速创建一个 Command 实例
+ * parse 函数会获取包含命令行参数的字符串列表 ， 然后根据命令行参数生成对应的 Command 结构体
+ * record_files 是开启 -yaml 选项后会开启的两个线程之一 ， 负责序列化 FileType 为 File 的 File实例 ，它会接受扫描线程发来的 File 结构体，将发来的结构体存储至文件中
+ * record_directories 是开启 -yaml 选项后会开启的第二个线程 ， 负责序列化 FileType 为 Directory 的 File实例 ，它会接受扫描线程发来的 File 结构体，将发来的结构体存储至文件中
+ * read_mystat 函数会读取当前目录下的 mystat.txt 文件，逐行获取扫描目录并保存到字符串数组中 ， 然后返回获取到的待扫描目录数组
+ * read_myfile 函数会读取当前目录下的 myfile.txt 文件，逐行获取操作目标与对应的操作并保存到字符串数组与 Operation 数组中 ， 然后返回包含这两个数组的元组
+ * ctime 函数会获取当前时间戳并以字符串的形式将其返回
  */
- use std::{
+use std::{
     path::PathBuf,
     env,
     error::Error,

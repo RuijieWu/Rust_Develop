@@ -1,7 +1,12 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-06 13:43:21
- * @Description: scan directory
+ * @LastEditTime: 2024-03-06 15:26:31
+ * @Description: 这个文件负责与扫描相关的操作 ， 包括扫描线程与建立目录树线程的相关函数
+ * scan_directory 函数接收通道的发送器，扫描路径 ， 待扫描路径列表与扫描指令作为参数 ， 会根据扫描指令决定向哪些通道发送扫描获取到的 File 实例 ， 同时把当前路径下的新的目录的路径放入到待扫描路径中
+ * get_dir_info 函数会获取一个目录结构体的不可变引用 ， 然后统计其下的最新与最久文件，总文件个数与总文件大小. (不包含其子目录)
+ * get_file_info 函数会获取指定路径文件的文件信息 ， 生成保存了对那个文件信息的 File 结构体实例作为返回
+ * find_dir 函数获取目录树和路径作为参数，然后通过迭代查找找到目录树中与文件路径与参数路径相同的结点的可变引用
+ * build_tree 函数会接收扫描线程发来的 File 实例 ， 根据 File 实例中的信息将其插入到目录树中 ， 插入完毕后返回目录树
  */
  use crate::{
     File,
@@ -178,14 +183,6 @@ pub fn get_file_info(file_path:PathBuf) -> Result<File,Box<dyn Error>> {
     Ok(file)
 }
 
-/* 
-pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
-    if root.dir_info.file_path == *name {
-        return Some(root);
-    }
-    root.sub_dirs.iter_mut().find_map(|dir| find_dir(dir, name))
-}
-*/
 pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
     let mut stack = Vec::new();
     stack.push(root);
@@ -201,6 +198,7 @@ pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut 
 
     None
 }
+
 pub fn build_tree(
     node_receiver: Receiver<File>,
     scan_path: PathBuf,
@@ -234,42 +232,3 @@ pub fn build_tree(
     tree_sender.send(root)?;
     Ok(())
 }
-
-/*
-pub fn find_dir<'a>(root: &'a mut NodeDir, name: &'a PathBuf) -> Option<&'a mut NodeDir> {
-    if root.dir_info.file_path == *name {
-        return Some(root);
-    }
-    root.sub_dirs.iter_mut().find_map(|dir| find_dir(dir, name))
-}
-
-pub fn build_tree(
-    node_receiver: Receiver<File>,
-    scan_path: PathBuf,
-    tree_sender: SyncSender<NodeDir>
-) -> Result<(),Box<dyn Error>>{
-    let mut root = NodeDir::new(get_file_info(scan_path.clone())?);
-    let mut dir_list:Vec<PathBuf> = vec![scan_path];
-    for node in node_receiver {
-            let mut parent_directory = node.file_path.clone();
-            parent_directory.pop();
-            for dir in &dir_list {
-                if  *dir == parent_directory {
-                    match node.file_type{
-                        FileType::Directory =>{
-                            dir_list.push(node.file_path.clone());
-                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_dir(NodeDir::new(node));
-                        }
-                        _ => {
-                            (*find_dir(&mut root,&parent_directory).unwrap()).add_sub_file(node);
-                        }
-                    }
-                    break
-                }
-            }
-    }
-    tree_sender.send(root)?;
-    Ok(())
-}
-
-*/

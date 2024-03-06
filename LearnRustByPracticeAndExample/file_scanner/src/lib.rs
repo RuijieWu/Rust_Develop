@@ -1,7 +1,13 @@
 /*
-* @Date: 2024-02-26 08:01:49
- * @LastEditTime: 2024-03-06 14:42:17
-* @Description: basic functions and structures
+ * @Date: 2024-02-26 08:01:49
+ * @LastEditTime: 2024-03-06 15:49:23
+ * @Description: 本文件负责程序要用到的主要结构的声明
+ * print_by_ident 函数会迭代打印整个 NodeDir 目录树 ， 它是 NodeDir 的 show 方法的实现的模块
+ * NodeDir 是一个目录树 ， 它包含了保存其子文件的动态数组 ， 自身的文件信息 ， 与包含其子树的动态数组
+ * FileType 是一个枚举类型 ， 用于表示文件是目录文件还是文件
+ * File 是对磁盘中的文件的抽象 ， 保存了文件的文件名 ， 读写时间 ， 父目录，子目录与文件目录等信息
+ * ScanResult 是用于保存扫描线程的扫描结果的结构体
+ * 所有结构体均实现了 new 方法 ， 用于快速创建对应实例 ， 此外 ， NodeDir结构体还实现了 add_sub_file 和 add_sub_dir 方法 ， 用于添加对应子文件与子目录
 */
 pub mod db;
 pub mod scanner;
@@ -29,21 +35,6 @@ fn print_by_ident(n: &NodeDir, level: usize, dir_list: &mut Vec<NodeDir>) {
     for node in &n.sub_dirs {
         dir_list.push(node.clone());
     }
-}
-
-pub fn find_string_difference(str1: &str, str2: &str) -> String {
-    let mut result = String::new();
-    
-    for (i, (char1, char2)) in str1.chars().zip(str2.chars()).enumerate() {
-        if char1 != char2 {
-            result.push(char1);
-            result.push(char2);
-            result.push_str(&str1.chars().skip(i + 1).collect::<String>());
-            break;
-        }
-    }
-
-    result
 }
 
 #[derive(Debug,Clone)]
