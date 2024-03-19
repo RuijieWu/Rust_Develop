@@ -1,6 +1,6 @@
 /*
  * @Date: 2024-02-26 08:10:33
- * @LastEditTime: 2024-03-06 15:26:31
+ * @LastEditTime: 2024-03-16 16:56:05
  * @Description: 这个文件负责与扫描相关的操作 ， 包括扫描线程与建立目录树线程的相关函数
  * scan_directory 函数接收通道的发送器，扫描路径 ， 待扫描路径列表与扫描指令作为参数 ， 会根据扫描指令决定向哪些通道发送扫描获取到的 File 实例 ， 同时把当前路径下的新的目录的路径放入到待扫描路径中
  * get_dir_info 函数会获取一个目录结构体的不可变引用 ， 然后统计其下的最新与最久文件，总文件个数与总文件大小. (不包含其子目录)
@@ -205,29 +205,25 @@ pub fn build_tree(
     tree_sender: SyncSender<NodeDir>,
 ) -> Result<(), Box<dyn Error>> {
     let mut root = NodeDir::new(get_file_info(scan_path.clone())?);
-    let mut dir_list: Vec<PathBuf> = vec![scan_path];
     for node in node_receiver {
         let mut parent_directory = node.file_path.clone();
         parent_directory.pop();
-        if dir_list.contains(&parent_directory) {
-            match node.file_type {
-                FileType::Directory => {
-                    dir_list.push(node.file_path.clone());
-                    if let Some(parent_dir) = find_dir(&mut root, &parent_directory) {
-                        parent_dir.add_sub_dir(NodeDir::new(node));
-                    } else {
-                        eprintln!("[*] Directory not found: {:?}", parent_directory);
-                    }
+        match node.file_type {
+            FileType::Directory => {
+                if let Some(parent_dir) = find_dir(&mut root, &parent_directory) {
+                    parent_dir.add_sub_dir(NodeDir::new(node));
+                } else {
+                    eprintln!("[*] Directory not found: {:?}", parent_directory);
                 }
-                _ => {
-                    if let Some(parent_dir) = find_dir(&mut root, &parent_directory) {
-                        parent_dir.add_sub_file(node);
-                    } else {
-                        eprintln!("[*] Directory not found: {:?}", parent_directory);
-                    }
+            },
+            _ => {
+                if let Some(parent_dir) = find_dir(&mut root, &parent_directory) {
+                    parent_dir.add_sub_file(node);
+                } else {
+                    eprintln!("[*] Directory not found: {:?}", parent_directory);
                 }
             }
-        }
+        };
     }
     tree_sender.send(root)?;
     Ok(())
